@@ -117,3 +117,26 @@ app.*.symbols
 !**/ios/**/default.perspectivev3
 !/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
 !/dev/ci/**/Gemfile.lock
+
+# 🚨 FIREBASE SECRETS (CRITICAL!)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+lib/firebase_options.dart
+firebase.json
+serviceAccountKey.json
+*.p12
+*.pfx
+*.key
+*.pem
+
+# 🔥 FIREBASE FILES
+.firebase/
+.firebaserc
+.firebase-debug.log
+
+# 📱 Platform-specific Firebase
+android/app/src/main/assets/firebase_analytics.properties
+
+# 🗄️ Local Firebase Emulator
+.emulators/
+.emulator.data/
