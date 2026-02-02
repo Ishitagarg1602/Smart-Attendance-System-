@@ -4,10 +4,14 @@
 *.log
 *.pyc
 *.swp
+.DS_Store
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
 .buildlog/
-.history
-
-
+.history/
+*.iml
 
 # Flutter repo-specific
 /bin/cache/
@@ -45,10 +49,13 @@ flutter_*.png
 linked_*.ds
 unlinked.ds
 unlinked_spec.ds
+**/*.dart.js
+**/*.js.map
+**/Generated_Plugin_Registrant.*
 
 # Android related
 **/android/**/gradle-wrapper.jar
-.gradle/
+**/android/.gradle/
 **/android/captures/
 **/android/gradlew
 **/android/gradlew.bat
@@ -140,3 +147,13 @@ android/app/src/main/assets/firebase_analytics.properties
 # 🗄️ Local Firebase Emulator
 .emulators/
 .emulator.data/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Test coverage files
+lcov.info
+*.lcov
