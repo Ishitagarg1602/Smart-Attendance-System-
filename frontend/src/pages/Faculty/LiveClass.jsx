@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import facultyService from '../../services/faculty.service';
@@ -12,15 +12,32 @@ const LiveClass = () => {
   const [attendance, setAttendance] = useState([]);
   const [expiryTime, setExpiryTime] = useState(60);
   const [loading, setLoading] = useState(true);
+  
+  // Use refs to prevent multiple intervals
+  const timerRef = useRef(null);
+  const sessionRef = useRef(null);
 
   useEffect(() => {
     loadActiveSession();
-    const interval = setInterval(loadActiveSession, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
+    const interval = setInterval(loadActiveSession, 5000);
+    return () => {
+      clearInterval(interval);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
   }, [classId]);
 
+  // Separate effect for timer
   useEffect(() => {
+    // Clear existing timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
     if (session) {
+      // Store session in ref
+      sessionRef.current = session;
+      
       // Update QR code data
       setQrData(JSON.stringify({
         token: session.token,
@@ -28,21 +45,47 @@ const LiveClass = () => {
         expiresAt: session.expiresAt
       }));
 
-      // Countdown timer
-      const timer = setInterval(() => {
-        const now = new Date();
-        const expiry = new Date(session.expiresAt);
-        const secondsLeft = Math.max(0, Math.floor((expiry - now) / 1000));
+      // Calculate initial expiry time
+      const now = new Date().getTime();
+      let expiryTimestamp;
+      
+      if (typeof session.expiresAt === 'string') {
+        expiryTimestamp = new Date(session.expiresAt).getTime();
+      } else if (session.expiresAt instanceof Date) {
+        expiryTimestamp = session.expiresAt.getTime();
+      } else {
+        expiryTimestamp = session.expiresAt;
+      }
+      
+      const initialSeconds = Math.max(0, Math.floor((expiryTimestamp - now) / 1000));
+      setExpiryTime(Math.min(initialSeconds, 60)); // Cap at 60 seconds
+
+      // Start new timer
+      timerRef.current = setInterval(() => {
+        const currentNow = new Date().getTime();
+        const currentExpiry = expiryTimestamp;
+        const secondsLeft = Math.max(0, Math.floor((currentExpiry - currentNow) / 1000));
+        
+        // Update state
         setExpiryTime(secondsLeft);
 
-        if (secondsLeft === 0) {
-          loadActiveSession(); // Get new session when expired
+        // If expired, load new session
+        if (secondsLeft <= 0) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          loadActiveSession();
         }
       }, 1000);
-
-      return () => clearInterval(timer);
     }
-  }, [session]);
+
+    // Cleanup on unmount or session change
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [session]); // Re-run when session changes
 
   const loadActiveSession = async () => {
     try {
@@ -56,8 +99,8 @@ const LiveClass = () => {
           setAttendance(attendanceRes.data.attendance);
         }
       } else {
-        // No active session, try to start one
-        await handleStartClass();
+        // No active session
+        setSession(null);
       }
     } catch (error) {
       console.error('Failed to load session:', error);
@@ -124,16 +167,23 @@ const LiveClass = () => {
             <div className="card">
               <h2 className="mb-3">QR Code Scanner</h2>
               
-              {qrData ? (
+              {session ? (
                 <div className="qr-container">
                   <div className="qr-code">
-                    <QRCode value={qrData} size={256} />
+                    <QRCode value={JSON.stringify({
+                      token: session.token,
+                      classId: session.classId,
+                      expiresAt: session.expiresAt
+                    })} size={256} />
                   </div>
                   
                   <div className="mt-4">
                     <div className="stat-card">
                       <div className="stat-label">Time Remaining</div>
-                      <div className="stat-value" style={{ color: expiryTime < 10 ? '#ef4444' : '#1e293b' }}>
+                      <div className="stat-value" style={{ 
+                        color: expiryTime < 10 ? '#ef4444' : '#1e293b',
+                        fontSize: '2.5rem'
+                      }}>
                         {expiryTime}s
                       </div>
                     </div>

@@ -118,31 +118,50 @@ exports.startClass = async (req, res) => {
     });
 
     if (existingSession) {
+      // Calculate remaining seconds correctly
+      const now = new Date();
+      const expiry = new Date(existingSession.expiresAt);
+      const remainingSeconds = Math.max(0, Math.floor((expiry - now) / 1000));
+      
       return res.json({
         success: true,
         message: 'Active session already exists',
         data: {
-          session: existingSession,
-          expiresIn: Math.floor((existingSession.expiresAt - new Date()) / 1000)
+          session: {
+            ...existingSession.toObject(),
+            expiresAt: existingSession.expiresAt // Send as Date object
+          },
+          expiresIn: remainingSeconds
         }
       });
     }
 
-    // Create new QR session
+    // Create new QR session - FIXED EXPIRY
+    const expirySeconds = parseInt(process.env.QR_EXPIRY_TIME) || 60;
+    const expiresAt = new Date(Date.now() + expirySeconds * 1000);
+    
     const session = new QRSession({
       classId,
       facultyId: faculty._id,
-      expiresAt: getExpiryTime(process.env.QR_EXPIRY_TIME || 1)
+      expiresAt: expiresAt,
+      createdAt: new Date()
     });
 
     await session.save();
+
+    // Calculate initial seconds
+    const now = new Date();
+    const remainingSeconds = Math.max(0, Math.floor((expiresAt - now) / 1000));
 
     res.status(201).json({
       success: true,
       message: 'Class started successfully',
       data: {
-        session,
-        expiresIn: process.env.QR_EXPIRY_TIME || 60
+        session: {
+          ...session.toObject(),
+          expiresAt: expiresAt // Send as Date object
+        },
+        expiresIn: remainingSeconds
       }
     });
   } catch (error) {

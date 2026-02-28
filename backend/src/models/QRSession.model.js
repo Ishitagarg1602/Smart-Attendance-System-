@@ -21,7 +21,7 @@ const qrSessionSchema = new mongoose.Schema({
   expiresAt: {
     type: Date,
     required: true,
-    index: { expires: 0 } // TTL index for auto-deletion
+    default: () => new Date(Date.now() + 60 * 1000) // 60 seconds from now
   },
   isActive: {
     type: Boolean,
@@ -36,6 +36,9 @@ const qrSessionSchema = new mongoose.Schema({
     default: Date.now
   }
 });
+
+// Index for auto-deletion
+qrSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Check if session is expired
 qrSessionSchema.methods.isExpired = function() {
