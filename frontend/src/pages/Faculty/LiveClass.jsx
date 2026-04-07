@@ -15,118 +15,123 @@ const LiveClass = () => {
   
   // Use refs to prevent multiple intervals
   const timerRef = useRef(null);
-  const sessionRef = useRef(null);
 
+  // Poll for attendance updates
   useEffect(() => {
-    loadActiveSession();
-    const interval = setInterval(loadActiveSession, 5000);
-    return () => {
-      clearInterval(interval);
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    loadClassData();
+    const interval = setInterval(loadClassData, 5000);
+    return () => clearInterval(interval);
   }, [classId]);
 
-  // Separate effect for timer
+  // QR Expiry timer manager
   useEffect(() => {
-    // Clear existing timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
 
     if (session) {
-      // Store session in ref
-      sessionRef.current = session;
-      
-      // Update QR code data
       setQrData(JSON.stringify({
         token: session.token,
         classId: session.classId,
         expiresAt: session.expiresAt
       }));
 
-      // Calculate initial expiry time
       const now = new Date().getTime();
-      let expiryTimestamp;
-      
-      if (typeof session.expiresAt === 'string') {
-        expiryTimestamp = new Date(session.expiresAt).getTime();
-      } else if (session.expiresAt instanceof Date) {
-        expiryTimestamp = session.expiresAt.getTime();
-      } else {
-        expiryTimestamp = session.expiresAt;
-      }
+      let expiryTimestamp = new Date(session.expiresAt).getTime();
       
       const initialSeconds = Math.max(0, Math.floor((expiryTimestamp - now) / 1000));
       setExpiryTime(Math.min(initialSeconds, 60)); // Cap at 60 seconds
 
-      // Start new timer
       timerRef.current = setInterval(() => {
         const currentNow = new Date().getTime();
-        const currentExpiry = expiryTimestamp;
-        const secondsLeft = Math.max(0, Math.floor((currentExpiry - currentNow) / 1000));
+        const secondsLeft = Math.max(0, Math.floor((expiryTimestamp - currentNow) / 1000));
         
-        // Update state
         setExpiryTime(secondsLeft);
 
-        // If expired, load new session
+        // Check 5-minute absolute timeout
+        const startTimeStr = localStorage.getItem('classStartTime-' + classId);
+        const startTime = startTimeStr ? parseInt(startTimeStr) : currentNow;
+        const totalElapsedSeconds = Math.floor((currentNow - startTime) / 1000);
+
+        if (totalElapsedSeconds >= 300) { // 5 minutes
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          toast.info('5 minutes have elapsed! Auto-stopping the class.');
+          handleStopClass(true);
+          return;
+        }
+
         if (secondsLeft <= 0) {
           clearInterval(timerRef.current);
           timerRef.current = null;
-          loadActiveSession();
+          // Auto-renew the QR code session!
+          startSession(true);
         }
       }, 1000);
     }
 
-    // Cleanup on unmount or session change
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [session]); // Re-run when session changes
+  }, [session]);
 
-  const loadActiveSession = async () => {
+  const loadClassData = async () => {
     try {
+      // 1. Get entire attendance for today so it doesn't reset every 60s
+      const today = new Date().toISOString().split('T')[0];
+      const attendanceRes = await facultyService.getClassAttendance(classId, { date: today });
+      if (attendanceRes.success) {
+        setAttendance(attendanceRes.data.attendance || []);
+      }
+
+      // 2. Fetch the active QR session (if any)
       const response = await facultyService.getActiveSession(classId);
       if (response.success && response.data.session) {
-        setSession(response.data.session);
-        
-        // Load live attendance
-        const attendanceRes = await facultyService.getLiveAttendance(response.data.session._id);
-        if (attendanceRes.success) {
-          setAttendance(attendanceRes.data.attendance);
-        }
+        // Prevent unnecessary state updates if it's the exact same session
+        setSession((prev) => {
+          if (!prev || prev._id !== response.data.session._id) {
+            return response.data.session;
+          }
+          return prev;
+        });
       } else {
-        // No active session
         setSession(null);
       }
     } catch (error) {
-      console.error('Failed to load session:', error);
+      // Ignore 404s when there is simply no active session
+      if (error && error.error !== 'No active session found') {
+        console.error('Failed to load class data:', error);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStartClass = async () => {
+  const startSession = async (silent = false) => {
     try {
       const response = await facultyService.startClass(classId);
       if (response.success) {
         setSession(response.data.session);
-        toast.success('Class started! QR code is now active.');
+        if (!silent) {
+          localStorage.setItem('classStartTime-' + classId, Date.now());
+          toast.success('Class started! QR code is now active.');
+        }
       }
     } catch (error) {
-      toast.error(error.error || 'Failed to start class');
+      if (!silent) toast.error(error.error || 'Failed to start class');
     }
   };
 
-  const handleStopClass = async () => {
-    if (window.confirm('Are you sure you want to stop this class?')) {
+  const handleStartClass = () => startSession(false);
+
+  const handleStopClass = async (autoStop = false) => {
+    if (autoStop === true || window.confirm('Are you sure you want to stop this class?')) {
       try {
         const response = await facultyService.stopClass(classId);
         if (response.success) {
-          toast.success('Class stopped');
+          if (autoStop !== true) toast.success('Class stopped');
+          localStorage.removeItem('classStartTime-' + classId);
           navigate('/faculty/dashboard');
         }
       } catch (error) {
@@ -145,7 +150,6 @@ const LiveClass = () => {
 
   return (
     <div className="dashboard">
-      {/* Sidebar */}
       <div className="sidebar">
         <div className="sidebar-header">
           <h2>Live Class</h2>
@@ -160,7 +164,6 @@ const LiveClass = () => {
         </nav>
       </div>
 
-      {/* Main Content */}
       <div className="main-content">
         <div className="row">
           <div className="col-md-5">
@@ -170,16 +173,12 @@ const LiveClass = () => {
               {session ? (
                 <div className="qr-container">
                   <div className="qr-code">
-                    <QRCode value={JSON.stringify({
-                      token: session.token,
-                      classId: session.classId,
-                      expiresAt: session.expiresAt
-                    })} size={256} />
+                    {qrData && <QRCode value={qrData} size={256} />}
                   </div>
                   
                   <div className="mt-4">
                     <div className="stat-card">
-                      <div className="stat-label">Time Remaining</div>
+                      <div className="stat-label">Token Refreshes In</div>
                       <div className="stat-value" style={{ 
                         color: expiryTime < 10 ? '#ef4444' : '#1e293b',
                         fontSize: '2.5rem'

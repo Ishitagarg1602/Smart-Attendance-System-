@@ -35,56 +35,60 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create user
-    const user = new User({
-      email,
-      password,
-      name,
-      role,
-      department
-    });
+    let createdUser = null;
+    try {
+      // Create user
+      const user = new User({ email, password, name, role, department });
+      createdUser = await user.save();
 
-    await user.save();
-
-    // Create role-specific document
-    if (role === 'student') {
-      const student = new Student({
-        user: user._id,
-        studentId: studentId || `S${Date.now().toString().slice(-7)}`,
-        rollNumber: rollNumber || `R${Date.now().toString().slice(-7)}`,
-        semester: semester || 1
-      });
-      await student.save();
-    } else if (role === 'faculty') {
-      const faculty = new Faculty({
-        user: user._id,
-        facultyId: facultyId || `F${Date.now().toString().slice(-7)}`,
-        designation: designation || 'Professor',
-        department
-      });
-      await faculty.save();
-    }
-
-    // Generate token
-    const token = generateToken(user._id, user.role);
-
-    // Remove password from response
-    const userResponse = user.toObject();
-    delete userResponse.password;
-
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      data: {
-        user: userResponse,
-        token
+      // Create role-specific document
+      if (role === 'student') {
+        const student = new Student({
+          user: user._id,
+          studentId: studentId || `S${Date.now().toString().slice(-7)}`,
+          rollNumber: rollNumber || `R${Date.now().toString().slice(-7)}`,
+          semester: semester || 1
+        });
+        await student.save();
+      } else if (role === 'faculty') {
+        const faculty = new Faculty({
+          user: user._id,
+          facultyId: facultyId || `F${Date.now().toString().slice(-7)}`,
+          designation: designation || 'Professor',
+          department
+        });
+        await faculty.save();
       }
-    });
+
+      // Generate token
+      const token = generateToken(user._id, user.role);
+      const userResponse = user.toObject();
+      delete userResponse.password;
+
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully',
+        data: { user: userResponse, token }
+      });
+    } catch (dbError) {
+      if (createdUser) {
+        // Rollback orphaned user
+        await User.findByIdAndDelete(createdUser._id);
+      }
+      throw dbError; // pass to outer catch
+    }
   } catch (error) {
     console.error('Registration error:', error);
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({
+        success: false,
+        error: `An account with this ${field} already exists. Please try another one!`
+      });
+    }
     res.status(500).json({
       success: false,
-      error: 'Registration failed'
+      error: error.message || 'Registration failed'
     });
   }
 };

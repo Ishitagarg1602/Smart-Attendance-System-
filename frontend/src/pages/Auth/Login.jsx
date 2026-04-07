@@ -91,7 +91,10 @@ const Login = () => {
 
         <div className="mt-4 text-center">
           <small className="text-muted">
-            Demo: faculty@test.com / student@test.com
+            Demo:<br/>
+            Admin: admin@test.com / Admin@123<br/>
+            Faculty: faculty@test.com<br/>
+            Student: student1@test.com
           </small>
         </div>
       </div>

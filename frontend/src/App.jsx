@@ -24,6 +24,8 @@ import StudentProfile from './pages/Student/Profile';
 // Admin Pages
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import UserManagement from './pages/Admin/UserManagement';
+import CreateUser from './pages/Admin/CreateUser';
+import UserDetails from './pages/Admin/UserDetails';
 import Reports from './pages/Admin/Reports';
 
 // Protected Route Component
@@ -148,6 +150,22 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <UserManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users/create"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <CreateUser />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users/:userId"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <UserDetails />
               </ProtectedRoute>
             }
           />

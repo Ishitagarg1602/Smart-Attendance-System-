@@ -64,7 +64,12 @@ const Register = () => {
         navigate('/student/dashboard');
       }
     } catch (error) {
-      toast.error(error.error || 'Registration failed');
+      if (error.errors && error.errors.length > 0) {
+        const errorMessages = error.errors.map(e => `${e.field}: ${e.message}`).join('\n');
+        toast.error(`Validation Failed:\n${errorMessages}`);
+      } else {
+        toast.error(error.error || 'Registration failed');
+      }
     } finally {
       setLoading(false);
     }

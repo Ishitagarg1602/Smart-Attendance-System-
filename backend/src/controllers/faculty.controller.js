@@ -39,9 +39,15 @@ exports.createClass = async (req, res) => {
     });
   } catch (error) {
     console.error('Create class error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        error: 'A class with this Subject Code already exists.'
+      });
+    }
     res.status(500).json({
       success: false,
-      error: 'Failed to create class'
+      error: error.message || 'Failed to create class'
     });
   }
 };

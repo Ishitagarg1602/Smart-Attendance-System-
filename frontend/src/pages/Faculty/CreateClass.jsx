@@ -99,7 +99,12 @@ const CreateClass = () => {
         navigate('/faculty/dashboard');
       }
     } catch (error) {
-      toast.error(error.error || 'Failed to create class');
+      if (error.errors && error.errors.length > 0) {
+        const errorMessages = error.errors.map(e => `${e.field}: ${e.message}`).join('\n');
+        toast.error(`Validation Failed:\n${errorMessages}`);
+      } else {
+        toast.error(error.error || 'Failed to create class');
+      }
     } finally {
       setLoading(false);
     }

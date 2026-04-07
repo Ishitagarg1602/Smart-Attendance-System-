@@ -6,9 +6,31 @@ const Faculty = require('../models/Faculty.model');
 const Class = require('../models/Class.model');
 const Attendance = require('../models/Attendance.model');
 const { authMiddleware, authorizeRoles } = require('../middleware/auth.middleware');
+const adminController = require('../controllers/admin.controller');
 
 // All admin routes require authentication and admin role
 router.use(authMiddleware, authorizeRoles('admin'));
+
+/**
+ * @route POST /api/admin/users
+ * @desc Create a new user directly
+ * @access Admin
+ */
+router.post('/users', adminController.createUser);
+
+/**
+ * @route DELETE /api/admin/users/:userId
+ * @desc Delete a user
+ * @access Admin
+ */
+router.delete('/users/:userId', adminController.deleteUser);
+
+/**
+ * @route PUT /api/admin/users/:userId/password
+ * @desc Change user password manually by admin
+ * @access Admin
+ */
+router.put('/users/:userId/password', adminController.changePassword);
 
 /**
  * @route GET /api/admin/users

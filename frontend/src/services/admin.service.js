@@ -55,6 +55,15 @@ class AdminService {
     }
   }
 
+  async changePassword(userId, newPassword) {
+    try {
+      const response = await api.put(`/admin/users/${userId}/password`, { newPassword });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  }
+
   async getStatistics() {
     try {
       const response = await api.get('/admin/statistics');
