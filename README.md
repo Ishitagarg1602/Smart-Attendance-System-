@@ -41,3 +41,71 @@ The **Smart Attendance System** automates the attendance process using **Dynamic
 - **Allowed Distance Radius:** Maximum of **`20 meters`** between the student and the classroom coordinates.
 - **GPS High Accuracy Mode:** Enforced at the browser/device level using the HTML5 Geolocation API (`enableHighAccuracy: true`) targeting `< 10 meters` precision internally.
 - **QR Code Expiry:** The system enforces a strict **`60-second`** TTL (Time-to-Live) on generated QR session tokens.
+
+---
+
+## 🛠️ Steps to Run This Project Locally
+
+To run this project on your local machine, you will need **Node.js** and **MongoDB** installed.
+
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd Smart-Attendance-System-
+```
+
+### 2. Backend Setup
+1. Open a terminal and navigate to the `backend` directory:
+   ```bash
+   cd backend
+   ```
+2. Install the backend dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the `backend` folder and add the following variables:
+   ```env
+   NODE_ENV=development
+   PORT=5000
+   MONGODB_URI=mongodb://localhost:27017/smart-attendance
+   JWT_SECRET=your_super_secret_jwt_key
+   JWT_EXPIRE=7d
+   QR_EXPIRY_TIME=60
+   ALLOWED_GPS_RADIUS=20
+   CORS_ORIGIN=http://localhost:3000
+   ```
+   *(Ensure MongoDB is running locally on port `27017`)*
+4. Run the seed data script (optional but recommended to create mock admins/students/faculties):
+   ```bash
+   npm run seed
+   ```
+5. Start the backend server:
+   ```bash
+   npm start
+   # or for development: npm run dev
+   ```
+
+### 3. Frontend Setup
+1. Open a new terminal window and navigate to the `frontend` directory:
+   ```bash
+   cd frontend
+   ```
+2. Install the frontend dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the `frontend` folder and add:
+   ```env
+   REACT_APP_API_URL=http://localhost:5000/api
+   REACT_APP_QR_EXPIRY_TIME=60
+   REACT_APP_APP_NAME=Smart Attendance System
+   REACT_APP_MAX_GPS_RADIUS=20
+   ```
+4. Start the frontend React development server:
+   ```bash
+   npm start
+   ```
+
+### 4. Access the Application
+- Open your browser and navigate to `http://localhost:3000`.
+- To test the location-fencing accurately during development, you may need to spoof or allow location permissions on your browser.
